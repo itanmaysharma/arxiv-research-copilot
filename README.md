@@ -1,4 +1,4 @@
-# arxiv-paper-curator-manual
+# ArXiv Research Copilot
 
 Manual, progressive implementation of an agentic RAG system for arXiv papers.
 
@@ -28,7 +28,7 @@ Manual, progressive implementation of an agentic RAG system for arXiv papers.
 
 ## 1. Setup
 ```bash
-cd /Users/sharma/Github/archive-curator/arxiv-paper-curator-manual
+cd <repo-root>
 cp .env.example .env
 uv sync
 ```
@@ -149,9 +149,6 @@ make clean
 ## Project docs
 - Architecture: [docs/architecture.md](docs/architecture.md)
 - Runbook: [docs/runbook.md](docs/runbook.md)
-- Retrospectives: `docs/retrospectives/`
-- Parity worklog (simple): `PARITY_WORKLOG_SIMPLE.md`
 
 ## Notes
 - Keep `.env` local and uncommitted.
-- This repo preserves part-by-part progression docs and parity worklog.
