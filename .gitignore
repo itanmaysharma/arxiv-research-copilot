@@ -1,0 +1,9 @@
+.DS_Store
+**/.DS_Store
+.venv/
+__pycache__/
+*.pyc
+
+# local env files
+arxiv-paper-curator-manual/.env
+arxiv-paper-curator-manual/.env.*

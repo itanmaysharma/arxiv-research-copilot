@@ -1,0 +1,34 @@
+[project]
+name = "arxiv-paper-curator-manual"
+version = "0.1.0"
+description = "Manual Part 1 infra for RAG system"
+requires-python = ">=3.12"
+dependencies = [
+  "fastapi>=0.115.0",
+  "uvicorn[standard]>=0.30.0",
+  "pydantic>=2.8.0",
+  "pydantic-settings>=2.4.0",
+  "sqlalchemy>=2.0.32",
+  "psycopg[binary]>=3.2.1",
+  "opensearch-py>=2.7.1",
+  "httpx>=0.27.0",
+  "langfuse>=2.59.0",
+  "pypdf>=5.1.0",
+  "redis>=5.0.8",
+  "gradio>=5.0.0",
+]
+
+[dependency-groups]
+dev = [
+  "pytest>=8.3.2",
+  "ruff>=0.6.1",
+  "mypy>=1.11.1",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
