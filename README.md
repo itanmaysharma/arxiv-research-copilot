@@ -42,18 +42,19 @@ This is not a general web assistant. It answers from the paper corpus you ingest
 
 ```mermaid
 graph TB
-    A["arXiv API"] --> B["Ingestion API / Airflow DAG"]
-    B --> C["Postgres"]
-    C --> D["Chunking + Indexing"]
-    D --> E["OpenSearch BM25"]
-    D --> F["OpenSearch Vector"]
-    G["User / Gradio / Telegram"] --> H["FastAPI"]
-    H --> E
-    H --> F
-    H --> I["Ollama"]
-    H --> J["Redis Cache"]
-    H --> K["Langfuse (optional)"]
-    B --> K
+    A["Users / Gradio / Telegram"] --> B["FastAPI"]
+    C["Airflow DAG"] --> B
+    D["arXiv API"] --> B
+
+    B --> E["Postgres"]
+    B --> F["OpenSearch BM25"]
+    B --> G["OpenSearch Vector"]
+    B --> H["Ollama"]
+    B --> I["Redis Cache"]
+    B --> J["Langfuse (optional)"]
+
+    E --> F
+    E --> G
 ```
 
 ## Technology stack
