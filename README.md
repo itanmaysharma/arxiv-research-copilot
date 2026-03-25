@@ -1,86 +1,145 @@
 # ArXiv Research Copilot
 
-Manual, progressive implementation of an agentic RAG system for arXiv papers.
+> Agentic RAG system for arXiv papers with staged ingestion, hybrid retrieval, grounded Q&A, and workflow orchestration.
 
-## What this project does
-- Ingests latest arXiv metadata (and prepares parse/chunk/index pipeline stages)
-- Stores data in Postgres
-- Indexes data into OpenSearch (BM25 + vector layer)
-- Supports retrieval APIs (`search`, `chunk-search`, `hybrid-search`)
-- Supports answer APIs (`ask`, `ask/stream`, `agentic-ask`)
-- Uses Redis cache for fast repeated ask responses
-- Uses Airflow DAG for scheduled staged ingestion
-- Provides Gradio UI for easy manual testing
+![Python](https://img.shields.io/badge/Python-3.12-blue.svg)
+![FastAPI](https://img.shields.io/badge/FastAPI-Backend-green.svg)
+![OpenSearch](https://img.shields.io/badge/OpenSearch-BM25%20%2B%20Vector-blue.svg)
+![Airflow](https://img.shields.io/badge/Airflow-Orchestration-red.svg)
+![Docker](https://img.shields.io/badge/Docker-Compose-2496ED.svg)
 
-## Tech stack
+## What this project is
+
+ArXiv Research Copilot is a backend-first research assistant for working with a focused set of arXiv papers.
+
+It ingests papers from arXiv, parses and chunks them, stores them in Postgres, builds keyword and vector indexes in OpenSearch, and exposes retrieval and Q&A APIs on top of that corpus. The project also includes Airflow-based ingestion orchestration, Redis caching, optional Langfuse tracing, and a lightweight Gradio UI for demos.
+
+This is not a general web assistant. It answers from the paper corpus you ingest.
+
+## Core capabilities
+
+- Staged paper ingestion: `fetch-store`, `parse`, `chunk`, `index`
+- Full one-shot ingestion pipeline endpoint
+- Postgres as source of truth for papers, chunks, and feedback
+- BM25 paper search, BM25 chunk search, and hybrid retrieval
+- Vector indexing with optional Jina embeddings
+- Grounded Q&A with source chunks
+- Streaming answer endpoint over SSE
+- Agentic Q&A flow with guardrails, scope checks, retrieval retry, and grading
+- Redis-backed answer cache with trace and latency headers
+- Airflow DAG for scheduled ingestion orchestration
+- Gradio UI for manual testing and demo flow
+- Pytest plus Ruff plus GitHub Actions CI
+
+## Typical use case
+
+1. Ingest a bounded paper set from arXiv.
+2. Build keyword and vector retrieval layers over that corpus.
+3. Ask questions about those papers instead of manually reading each one end to end.
+4. Inspect retrieved sources, grounded answers, and agentic decision steps.
+
+## Architecture overview
+
+```mermaid
+graph TB
+    A["arXiv API"] --> B["Ingestion API / Airflow DAG"]
+    B --> C["Postgres"]
+    C --> D["Chunking + Indexing"]
+    D --> E["OpenSearch BM25"]
+    D --> F["OpenSearch Vector"]
+    G["User / Gradio / Telegram"] --> H["FastAPI"]
+    H --> E
+    H --> F
+    H --> I["Ollama"]
+    H --> J["Redis Cache"]
+    H --> K["Langfuse (optional)"]
+    B --> K
+```
+
+## Technology stack
+
+### Backend
+
+- Python 3.12
 - FastAPI
-- Postgres
-- OpenSearch + OpenSearch Dashboards
-- Airflow 3 (api-server, scheduler, dag-processor)
+- SQLAlchemy
+- Pydantic v2
+- UV
+
+### Data and retrieval
+
+- PostgreSQL
+- OpenSearch
 - Redis
+- Jina embeddings (optional)
+
+### Orchestration and generation
+
+- Airflow 3
 - Ollama
+- Langfuse (optional)
+
+### Developer tooling
+
+- Docker Compose
+- Pytest
+- Ruff
+- GitHub Actions
 - Gradio
 
-## Prerequisites
-- Docker + Docker Compose
-- `uv` installed locally
-- macOS/Linux shell
+## Quick start
 
-## 1. Setup
+### Prerequisites
+
+- Docker and Docker Compose
+- `uv`
+- macOS or Linux shell
+
+### 1. Setup
+
 ```bash
-cd <repo-root>
+git clone <your-repo-url>
+cd arxiv-research-copilot
 cp .env.example .env
 uv sync
 ```
 
-Optional semantic retrieval key:
-- Set `JINA_API_KEY` in `.env` for real embeddings quality.
+Optional:
 
-## 2. Start services
+- Set `JINA_API_KEY` in `.env` for higher-quality vector embeddings
+- Set Langfuse keys if you want tracing beyond local logs
+- Enable Telegram only if you want bot-based interaction
+
+### 2. Start the stack
+
 ```bash
 make start
-```
-
-Check status:
-```bash
-make status
 make health
 ```
 
-Expected health signals:
-- API health JSON returns `ok`
-- OpenSearch `ok`
-- Ollama `ok`
-- Redis `PONG`
-- Airflow HTTP `200`
-- Dashboards HTTP `302`
+Main endpoints:
 
-## 3. Core API smoke tests
-### API root and health
-```bash
-curl -s http://localhost:8000/
-curl -s http://localhost:8000/health
-```
+- API: `http://localhost:8000`
+- API docs: `http://localhost:8000/docs`
+- Airflow: `http://localhost:8080`
+- OpenSearch Dashboards: `http://localhost:5601`
 
-### Papers list
-```bash
-curl -s http://localhost:8000/api/v1/papers
-```
+### 3. Run a full ingestion pipeline
 
-### Staged ingestion (new architecture)
-```bash
-curl -s -X POST "http://localhost:8000/api/v1/papers/ingest/fetch-store?max_results=3"
-curl -s -X POST "http://localhost:8000/api/v1/papers/ingest/parse?limit=10"
-curl -s -X POST "http://localhost:8000/api/v1/papers/ingest/chunk?limit=10"
-curl -s -X POST "http://localhost:8000/api/v1/papers/ingest/index"
-```
-
-Or full pipeline in one call:
 ```bash
 curl -s -X POST "http://localhost:8000/api/v1/papers/ingest/pipeline?max_results=3"
 ```
 
-### Search APIs
+What happens:
+
+- latest arXiv papers are fetched
+- metadata is upserted into Postgres
+- PDFs are parsed when available
+- text is chunked
+- BM25 and vector indexes are refreshed
+
+### 4. Try retrieval
+
 ```bash
 curl -s -X POST "http://localhost:8000/api/v1/search" \
   -H "Content-Type: application/json" \
@@ -95,60 +154,141 @@ curl -s -X POST "http://localhost:8000/api/v1/hybrid-search" \
   -d '{"query":"trustworthy personalized explanations","size":3}'
 ```
 
-### Ask APIs
+### 5. Try grounded Q&A
+
 ```bash
 curl -s -X POST "http://localhost:8000/api/v1/ask" \
   -H "Content-Type: application/json" \
   -d '{"question":"What does PONTE optimize for?","top_k":3}'
+```
 
+Streaming variant:
+
+```bash
 curl -N -X POST "http://localhost:8000/api/v1/ask/stream" \
   -H "Content-Type: application/json" \
   -d '{"question":"What does PONTE optimize for?","top_k":3}'
 ```
 
-### Agentic ask
+Agentic variant:
+
 ```bash
 curl -s -X POST "http://localhost:8000/api/v1/agentic-ask" \
   -H "Content-Type: application/json" \
   -d '{"question":"What does PONTE optimize for?","top_k":3}'
 ```
 
-## 4. Airflow verification
-- Open http://localhost:8080
-- Find DAG: `arxiv_ingestion_dag`
-- Trigger run
-- Confirm tasks succeed in order:
-  - `fetch_and_store_metadata`
-  - `parse_full_text`
-  - `chunk_papers`
-  - `index_search_layers`
+## API surface
 
-## 5. Gradio UI
-Start UI:
+### Ingestion
+
+- `POST /api/v1/papers/ingest/fetch-store`
+- `POST /api/v1/papers/ingest/parse`
+- `POST /api/v1/papers/ingest/chunk`
+- `POST /api/v1/papers/ingest/index`
+- `POST /api/v1/papers/ingest/pipeline`
+
+### Retrieval
+
+- `POST /api/v1/search`
+- `POST /api/v1/chunk-search`
+- `POST /api/v1/hybrid-search`
+
+### Q&A
+
+- `POST /api/v1/ask`
+- `POST /api/v1/ask/stream`
+- `POST /api/v1/agentic-ask`
+
+### Supporting endpoints
+
+- `GET /health`
+- `POST /api/v1/feedback`
+
+## Gradio demo UI
+
+Start it with:
+
 ```bash
 uv run python gradio_launcher.py
 ```
-Open:
-- http://localhost:7860
 
-Tabs:
+Open:
+
+- `http://localhost:7860`
+
+Available tabs:
+
 - Ask
 - Ask Stream
 - Hybrid Search
 - Agentic Ask
 
-## Useful commands
+## Airflow orchestration
+
+The repo includes an Airflow DAG for staged ingestion orchestration.
+
+To verify it:
+
+1. Open `http://localhost:8080`
+2. Find `arxiv_ingestion_dag`
+3. Trigger a run
+4. Confirm task success in this order:
+   - `fetch_and_store_metadata`
+   - `parse_full_text`
+   - `chunk_papers`
+   - `index_search_layers`
+
+## Project structure
+
+```text
+arxiv-research-copilot/
+├── airflow/                 # Airflow DAGs
+├── docs/                    # Public docs
+├── scripts/                 # Local utility and indexing scripts
+├── src/
+│   ├── db/                  # DB setup
+│   ├── errors/              # Typed exception model + handlers
+│   ├── models/              # SQLAlchemy models
+│   ├── routers/             # FastAPI endpoints
+│   ├── schemas/             # Pydantic schemas
+│   └── services/            # Ingestion, retrieval, LLM, cache, tracing, bots
+├── tests/                   # Unit, API, and integration tests
+├── docker-compose.yaml
+├── gradio_launcher.py
+├── Makefile
+└── pyproject.toml
+```
+
+## Development commands
+
 ```bash
+make start
+make status
+make health
 make logs
-make test
 make lint
+make test
 make stop
 make clean
 ```
 
-## Project docs
+## Engineering notes
+
+- Postgres stores source-of-truth records for papers and chunks
+- OpenSearch stores serving indexes, not canonical records
+- Redis cache misses do not block answer generation
+- Vector indexing can be optional or degraded without blocking BM25
+- Typed API errors follow a consistent schema
+- CI runs Ruff and Pytest on push and pull request
+
+## Public docs
+
 - Architecture: [docs/architecture.md](docs/architecture.md)
 - Runbook: [docs/runbook.md](docs/runbook.md)
 
 ## Notes
-- Keep `.env` local and uncommitted.
+
+- Keep `.env` local and uncommitted
+- `.env.example` is the setup template
+- This repo is intentionally backend-heavy; Gradio is included as a thin demo interface
